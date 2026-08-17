@@ -1,0 +1,38 @@
+--- /home/claude/work/src3/orig/CardShopCoop-master/src/CardShopCoop/Sync/TournamentSync.cs	2026-08-15 09:05:01.000000000 +0000
++++ src/CardShopCoop/Sync/TournamentSync.cs	2026-08-17 00:38:38.262306118 +0000
+@@ -1,6 +1,7 @@
+ using System;
+ using System.Collections.Generic;
+ using System.IO;
++using System.Reflection;
+ using HarmonyLib;
+ using UnityEngine;
+ using CardShopCoop.Net;
+@@ -21,6 +22,15 @@
+     /// </summary>
+     public class TournamentSync
+     {
++        /// <summary>TournamentPrizeShelf.m_ScreenMesh is absent on some game builds (it is not
++        /// present in the current Game Pass Assembly-CSharp), which made this file fail to
++        /// COMPILE against those builds. Resolved once via reflection instead, so a missing or
++        /// renamed field simply disables this one cosmetic show/hide rather than breaking the
++        /// build. Null when the field isn't there.</summary>
++        private static readonly FieldInfo FiScreenMesh =
++            typeof(TournamentPrizeShelf).GetField("m_ScreenMesh",
++                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
++
+         /// <summary>Set by CoopCore: host -> clients state broadcast.</summary>
+         public Action<Action<BinaryWriter>> BroadcastState;
+ 
+@@ -243,8 +253,9 @@
+                     var shelves = ShelfManager.GetTournamentPrizeShelfList();
+                     for (int i = 0; i < shelves.Count; i++)
+                     {
+-                        if (shelves[i] != null && shelves[i].m_ScreenMesh != null)
+-                            shelves[i].m_ScreenMesh.SetActive(showBoard);
++                        if (shelves[i] == null || FiScreenMesh == null) continue;
++                        var mesh = FiScreenMesh.GetValue(shelves[i]) as GameObject;
++                        if (mesh != null) mesh.SetActive(showBoard);
+                     }
+                 }
+                 catch (Exception e) { CoopPlugin.Log.LogWarning("TournamentSync board vis: " + e.Message); }
